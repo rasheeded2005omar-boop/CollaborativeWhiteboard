@@ -1,0 +1,337 @@
+/* ============================================================
+   site.css — Smart Collaborative Whiteboard
+============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    background: #f0f2f5;
+    color: #1e1e1e;
+    direction: rtl;
+    overflow: hidden;
+    height: 100vh;
+}
+
+/* ============================================================
+   شاشة الدخول
+============================================================ */
+#login-screen {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #0f3460 0%, #185FA5 50%, #534AB7 100%);
+    z-index: 1000;
+}
+
+.login-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 44px 40px;
+    text-align: center;
+    width: 380px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+}
+
+.login-icon { font-size: 48px; margin-bottom: 12px; }
+.login-card h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; color: #1e1e1e; }
+.login-card p  { color: #777; font-size: 13px; margin-bottom: 24px; line-height: 1.6; }
+
+.login-card input {
+    width: 100%; padding: 13px 16px;
+    border: 1.5px solid #ddd; border-radius: 10px;
+    font-size: 15px; text-align: center; direction: rtl;
+    outline: none; transition: border-color 0.2s;
+}
+.login-card input:focus { border-color: #185FA5; box-shadow: 0 0 0 3px #E6F1FB; }
+
+.login-card button {
+    margin-top: 14px; width: 100%; padding: 13px;
+    background: linear-gradient(135deg, #185FA5, #534AB7);
+    color: #fff; border: none; border-radius: 10px;
+    font-size: 16px; font-weight: 600; cursor: pointer;
+    transition: opacity 0.2s; letter-spacing: 0.3px;
+}
+.login-card button:hover { opacity: 0.9; }
+
+.ai-hint {
+    margin-top: 16px; font-size: 12px; color: #999;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: #f8f9ff; border-radius: 8px; padding: 8px 12px;
+}
+
+/* ============================================================
+   Board Screen
+============================================================ */
+#board-screen {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* ============================================================
+   شريط الأدوات
+============================================================ */
+#toolbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    background: #fff;
+    border-bottom: 1px solid #e8e8e8;
+    flex-shrink: 0; flex-wrap: wrap;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+    z-index: 10;
+}
+
+.app-title {
+    font-size: 15px; font-weight: 700;
+    color: #185FA5; white-space: nowrap;
+}
+
+.sep { width: 1px; height: 26px; background: #e8e8e8; margin: 0 3px; }
+
+.tool-group { display: flex; gap: 4px; }
+
+.tool-btn {
+    width: 34px; height: 34px;
+    border: 1.5px solid #e0e0e0; border-radius: 8px;
+    background: #fafafa; cursor: pointer;
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; color: #555;
+}
+.tool-btn:hover  { background: #f0f0f0; border-color: #bbb; }
+.tool-btn.active { background: #E6F1FB; border-color: #185FA5; }
+
+/* AI Toggle */
+.ai-toggle-wrap {
+    display: flex; align-items: center; gap: 8px;
+}
+.ai-label { font-size: 12px; font-weight: 600; color: #534AB7; white-space: nowrap; }
+
+.toggle { position: relative; display: inline-block; width: 40px; height: 22px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.slider {
+    position: absolute; inset: 0;
+    background: #ddd; border-radius: 22px; cursor: pointer;
+    transition: background 0.2s;
+}
+.slider::before {
+    content: ''; position: absolute;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; left: 3px; top: 3px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle input:checked + .slider { background: #534AB7; }
+.toggle input:checked + .slider::before { transform: translateX(18px); }
+
+/* الألوان */
+.color-palette { display: flex; gap: 5px; align-items: center; }
+.color-dot {
+    width: 24px; height: 24px; border-radius: 50%;
+    cursor: pointer; border: 2px solid transparent;
+    transition: transform 0.1s;
+}
+.color-dot:hover  { transform: scale(1.15); }
+.color-dot.active { border-color: #333; transform: scale(1.2); box-shadow: 0 0 0 2px #fff inset; }
+
+/* السماكة */
+.size-wrap { display: flex; align-items: center; gap: 6px; }
+.size-lbl  { font-size: 12px; color: #999; white-space: nowrap; }
+input[type=range] { width: 80px; accent-color: #185FA5; }
+#size-dot {
+    border-radius: 50%; background: #1e1e1e;
+    min-width: 4px; min-height: 4px;
+    width: 6px; height: 6px; transition: all 0.1s;
+}
+
+/* أزرار الإجراءات */
+.action-btn {
+    padding: 6px 12px;
+    border: 1.5px solid #e0e0e0; border-radius: 8px;
+    background: #fafafa; cursor: pointer;
+    font-size: 13px; color: #555; transition: all 0.15s;
+}
+.action-btn:hover  { background: #f0f0f0; }
+.action-btn.danger { border-color: #f09595; color: #A32D2D; }
+.action-btn.danger:hover { background: #FCEBEB; }
+
+/* Badge */
+.badge {
+    font-size: 12px; padding: 4px 10px;
+    border-radius: 12px; font-weight: 600; white-space: nowrap;
+}
+.badge.connected    { background: #EAF3DE; color: #3B6D11; }
+.badge.reconnecting { background: #FAEEDA; color: #854F0B; }
+.badge.disconnected { background: #FCEBEB; color: #A32D2D; }
+
+/* ============================================================
+   المنطقة الرئيسية
+============================================================ */
+#main-area {
+    display: flex; flex: 1; overflow: hidden;
+}
+
+/* لوحة الرسم */
+#canvas-wrap {
+    flex: 1; position: relative; overflow: hidden;
+    background: #fff;
+}
+
+#wbCanvas {
+    position: absolute; top: 0; left: 0;
+    cursor: crosshair; touch-action: none;
+}
+
+/* طبقة المؤشرات */
+#cursors-layer {
+    position: absolute; inset: 0;
+    pointer-events: none; z-index: 5;
+}
+
+.remote-cursor {
+    position: absolute; pointer-events: none;
+    transition: left 0.05s, top 0.05s; z-index: 6;
+}
+.remote-cursor span {
+    display: inline-block; font-size: 11px; color: #fff;
+    padding: 2px 6px; border-radius: 4px;
+    margin-right: 2px; white-space: nowrap;
+    vertical-align: top; margin-top: 14px;
+}
+
+/* سجل الأحداث على اللوحة */
+#event-log {
+    position: absolute; bottom: 12px; left: 12px;
+    display: flex; flex-direction: column; gap: 5px;
+    pointer-events: none; z-index: 10; max-width: 360px;
+}
+.log-item {
+    font-size: 12px; padding: 6px 11px;
+    background: rgba(255,255,255,0.95);
+    border: 1px solid #e8e8e8; border-radius: 8px;
+    color: #444; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: opacity 0.4s; direction: rtl;
+}
+.log-item.ai-log {
+    border-color: #c5b8f5;
+    background: #f5f3ff;
+    color: #3d2e8a;
+}
+
+/* AI Overlay */
+#ai-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.6);
+    z-index: 20; backdrop-filter: blur(2px);
+}
+.ai-popup {
+    display: flex; align-items: center; gap: 12px;
+    background: #fff; border: 1.5px solid #c5b8f5;
+    border-radius: 12px; padding: 14px 22px;
+    box-shadow: 0 8px 32px rgba(83,74,183,0.15);
+    font-size: 14px; font-weight: 600; color: #3d2e8a;
+}
+.ai-spinner {
+    width: 20px; height: 20px;
+    border: 3px solid #e0daff; border-top-color: #534AB7;
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+
+/* Replay Overlay */
+#replay-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.85); z-index: 20;
+}
+.replay-box {
+    text-align: center; background: #fff;
+    border: 1px solid #e0e0e0; border-radius: 14px;
+    padding: 32px 44px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+.replay-spinner {
+    width: 40px; height: 40px;
+    border: 4px solid #E6F1FB; border-top-color: #185FA5;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin: 0 auto 14px;
+}
+#replay-msg { font-size: 14px; color: #555; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   لوحة الإحصائيات
+============================================================ */
+#stats-panel {
+    width: 200px; flex-shrink: 0;
+    background: #fafafa;
+    border-right: 1px solid #e8e8e8;
+    padding: 14px 12px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 6px;
+}
+
+.panel-title {
+    font-size: 12px; font-weight: 700;
+    color: #555; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 4px;
+}
+
+.stat-card {
+    background: #fff; border: 1px solid #e8e8e8;
+    border-radius: 10px; padding: 10px 12px; text-align: center;
+}
+.stat-card.accent { border-color: #c5b8f5; background: #f5f3ff; }
+.stat-num {
+    font-size: 28px; font-weight: 700; color: #185FA5; line-height: 1;
+}
+.stat-card.accent .stat-num { color: #534AB7; }
+.stat-lbl { font-size: 11px; color: #999; margin-top: 3px; }
+
+.breakdown-title {
+    font-size: 11px; font-weight: 600; color: #888;
+    margin-top: 6px; margin-bottom: 2px;
+}
+.shape-row {
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: #555;
+    padding: 3px 4px; border-radius: 4px;
+}
+.shape-row:hover { background: #f0f0f0; }
+.shape-row span:last-child { font-weight: 700; color: #534AB7; }
+
+.user-row {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; color: #444; padding: 3px 0;
+}
+.user-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+}
+
+.act-item {
+    font-size: 11px; color: #666;
+    padding: 3px 0; border-bottom: 1px solid #f0f0f0;
+    line-height: 1.5;
+}
+
+/* ============================================================
+   شريط الحالة
+============================================================ */
+#status-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 5px 14px;
+    background: #fafafa; border-top: 1px solid #e8e8e8;
+    font-size: 12px; color: #888; flex-shrink: 0;
+}
+#my-info   { font-size: 13px; }
+#ai-status { color: #534AB7; font-weight: 600; }
+.vsep { color: #ddd; }
+
+/* ============================================================
+   Responsive
+============================================================ */
+@media (max-width: 640px) {
+    #stats-panel { display: none; }
+    .app-title   { display: none; }
+    .size-lbl    { display: none; }
+    input[type=range] { width: 60px; }
+}

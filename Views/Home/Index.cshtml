@@ -1,0 +1,622 @@
+@{
+    ViewData["Title"] = "سبورة تعاون ذكية";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div id="app">
+
+  <!-- شاشة الدخول -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="login-icon">🎨</div>
+      <h1>سبورة تعاون ذكية</h1>
+      <p>ارسم أي شكل وسيتعرف عليه الذكاء الاصطناعي ويصحّحه تلقائياً</p>
+      <input type="text" id="name-input" placeholder="أدخل اسمك..." maxlength="20" />
+      <button id="join-btn" onclick="joinBoard()">ادخل السبورة</button>
+      <div class="ai-hint">
+        <span>🤖</span>
+        <span>يتعرف على: دوائر · مستطيلات · مثلثات · خطوط · أسهم</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- السبورة -->
+  <div id="board-screen" style="display:none">
+
+    <!-- شريط الأدوات -->
+    <div id="toolbar">
+      <span class="app-title">🎨 سبورة ذكية</span>
+      <div class="sep"></div>
+
+      <div class="tool-group">
+        <button class="tool-btn active" id="t-pen"    onclick="setTool('pen')"    title="قلم حر">✏️</button>
+        <button class="tool-btn"        id="t-erase"  onclick="setTool('erase')"  title="ممحاة">🧹</button>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- مفتاح الـ AI -->
+      <div class="ai-toggle-wrap">
+        <span class="ai-label">🤖 تصحيح AI</span>
+        <label class="toggle">
+          <input type="checkbox" id="ai-toggle" checked onchange="toggleAI(this.checked)" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="color-palette">
+        <div class="color-dot active" style="background:#1e1e1e" onclick="setColor('#1e1e1e',this)"></div>
+        <div class="color-dot" style="background:#185FA5" onclick="setColor('#185FA5',this)"></div>
+        <div class="color-dot" style="background:#A32D2D" onclick="setColor('#A32D2D',this)"></div>
+        <div class="color-dot" style="background:#3B6D11" onclick="setColor('#3B6D11',this)"></div>
+        <div class="color-dot" style="background:#854F0B" onclick="setColor('#854F0B',this)"></div>
+        <div class="color-dot" style="background:#534AB7" onclick="setColor('#534AB7',this)"></div>
+        <div class="color-dot" style="background:#993556" onclick="setColor('#993556',this)"></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="size-wrap">
+        <span class="size-lbl">سُمك</span>
+        <input type="range" id="size-slider" min="1" max="24" value="3"
+               oninput="setSize(+this.value)" />
+        <div id="size-dot"></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <button class="action-btn" onclick="undoLast()">↩ تراجع</button>
+      <button class="action-btn danger" onclick="clearBoard()">🗑 مسح</button>
+
+      <div style="flex:1"></div>
+      <div id="conn-badge" class="badge disconnected">● غير متصل</div>
+    </div>
+
+    <!-- منطقة الرسم -->
+    <div id="main-area">
+
+      <!-- لوحة الرسم -->
+      <div id="canvas-wrap">
+        <canvas id="wbCanvas"></canvas>
+        <!-- طبقة المؤشرات -->
+        <div id="cursors-layer"></div>
+        <!-- إشعارات الأحداث -->
+        <div id="event-log"></div>
+        <!-- overlay الـ AI -->
+        <div id="ai-overlay" style="display:none">
+          <div class="ai-popup">
+            <div class="ai-spinner"></div>
+            <span id="ai-msg">🤖 جاري التحليل...</span>
+          </div>
+        </div>
+        <!-- overlay إعادة البث -->
+        <div id="replay-overlay" style="display:none">
+          <div class="replay-box">
+            <div class="replay-spinner"></div>
+            <p id="replay-msg">جاري استعادة السبورة...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- لوحة الإحصائيات الجانبية -->
+      <div id="stats-panel">
+        <div class="panel-title">🤖 إحصائيات AI</div>
+
+        <div class="stat-card">
+          <div class="stat-num" id="s-total">0</div>
+          <div class="stat-lbl">إجمالي الضربات</div>
+        </div>
+        <div class="stat-card accent">
+          <div class="stat-num" id="s-recognized">0</div>
+          <div class="stat-lbl">أشكال معترف بها</div>
+        </div>
+
+        <div class="breakdown-title">توزيع الأشكال</div>
+        <div id="shape-breakdown">
+          <div class="shape-row"><span>دائرة ⭕</span><span id="b-circle">0</span></div>
+          <div class="shape-row"><span>مستطيل ▭</span><span id="b-rectangle">0</span></div>
+          <div class="shape-row"><span>مثلث △</span><span id="b-triangle">0</span></div>
+          <div class="shape-row"><span>خط ╱</span><span id="b-line">0</span></div>
+          <div class="shape-row"><span>سهم →</span><span id="b-arrow">0</span></div>
+        </div>
+
+        <div class="panel-title" style="margin-top:16px">👥 المتصلون</div>
+        <div id="users-panel"></div>
+
+        <div class="panel-title" style="margin-top:16px">📋 سجل الأحداث</div>
+        <div id="activity-log"></div>
+      </div>
+
+    </div>
+
+    <!-- شريط الحالة -->
+    <div id="status-bar">
+      <span id="my-info">أنت: —</span>
+      <span class="vsep">|</span>
+      <span id="ai-status">🤖 AI: مفعّل</span>
+      <span style="flex:1"></span>
+      <span id="coords">x:0 y:0</span>
+    </div>
+
+  </div>
+</div>
+
+@section Scripts {
+<script>
+// ================================================================
+//  المتغيرات
+// ================================================================
+let connection;
+let myInfo = null;
+let tool = 'pen', color = '#1e1e1e', penSize = 3;
+let aiEnabled = true;
+
+let isDrawing = false;
+let currentStrokeId = '';
+let allCurrentPoints = []; // كل النقاط (للـ AI عند الاكتمال)
+let lastX = 0, lastY = 0;
+let strokes = [];
+
+// ================================================================
+//  دخول
+// ================================================================
+function joinBoard() {
+    const name = document.getElementById('name-input').value.trim() || 'مجهول';
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('board-screen').style.display = 'flex';
+    initCanvas();
+    initSignalR(name);
+}
+document.getElementById('name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') joinBoard();
+});
+
+// ================================================================
+//  Canvas
+// ================================================================
+const canvas = document.getElementById('wbCanvas');
+const ctx    = canvas.getContext('2d');
+const wrap   = document.getElementById('canvas-wrap');
+
+function initCanvas() {
+    resize();
+    canvas.addEventListener('mousedown',  onDown);
+    canvas.addEventListener('mousemove',  onMove);
+    canvas.addEventListener('mouseup',    onUp);
+    canvas.addEventListener('mouseleave', onUp);
+    canvas.addEventListener('touchstart', onDown, { passive: false });
+    canvas.addEventListener('touchmove',  onMove, { passive: false });
+    canvas.addEventListener('touchend',   onUp);
+    window.addEventListener('resize', resize);
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undoLast(); }
+    });
+}
+
+function resize() {
+    canvas.width  = wrap.clientWidth;
+    canvas.height = wrap.clientHeight;
+    redraw();
+}
+
+function getPos(e) {
+    const r   = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - r.left, y: src.clientY - r.top };
+}
+
+// ================================================================
+//  رسم ضربة
+// ================================================================
+function drawStroke(s) {
+    if (!s.points || s.points.length < 2) return;
+    ctx.save();
+    ctx.strokeStyle = s.tool === 'erase' ? '#ffffff' : s.color;
+    ctx.lineWidth   = s.tool === 'erase' ? s.size * 5 : s.size;
+    ctx.lineCap = ctx.lineJoin = 'round';
+    const pts = s.points;
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.stroke();
+    ctx.restore();
+}
+
+// رسم شكل مصحَّح من AI (بنقاط CorrectedPoints)
+function drawCorrectedShape(shape, color, size) {
+    const pts = shape.correctedPoints;
+    if (!pts || pts.length < 2) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = size;
+    ctx.lineCap = ctx.lineJoin = 'round';
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    if (shape.shapeType === 'circle') ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+}
+
+function redraw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    strokes.forEach(s => {
+        // إذا كانت للضربة شكل مصحَّح → ارسم الشكل المثالي
+        if (s.recognizedShape && s.recognizedShape.shapeType !== 'none') {
+            drawCorrectedShape(s.recognizedShape, s.color, s.size);
+        } else {
+            drawStroke(s);
+        }
+    });
+}
+
+// ================================================================
+//  أحداث الرسم + Delta Streaming
+// ================================================================
+function onDown(e) {
+    e.preventDefault();
+    isDrawing = true;
+    const p = getPos(e);
+    lastX = p.x; lastY = p.y;
+    currentStrokeId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+    allCurrentPoints = [p];
+    sendDelta([p], false);
+}
+
+function onMove(e) {
+    e.preventDefault();
+    const p = getPos(e);
+    document.getElementById('coords').textContent = `x:${Math.round(p.x)} y:${Math.round(p.y)}`;
+
+    if (!isDrawing) {
+        if (connection?.state === 'Connected')
+            connection.invoke('CursorMove', p.x, p.y).catch(() => {});
+        return;
+    }
+
+    // رسم محلي فوري
+    ctx.save();
+    ctx.strokeStyle = tool === 'erase' ? '#ffffff' : color;
+    ctx.lineWidth   = tool === 'erase' ? penSize * 5 : penSize;
+    ctx.lineCap = ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    ctx.restore();
+
+    lastX = p.x; lastY = p.y;
+    allCurrentPoints.push(p);
+    sendDelta([p], false);
+}
+
+function onUp(e) {
+    if (!isDrawing) return;
+    isDrawing = false;
+    const p = getPos(e);
+    allCurrentPoints.push(p);
+
+    // أضف الضربة محلياً (مؤقتاً بدون شكل مصحّح)
+    const stroke = {
+        id: currentStrokeId,
+        tool, color,
+        size: penSize,
+        points: [...allCurrentPoints]
+    };
+    strokes.push(stroke);
+
+    // إذا AI مفعّل، أظهر مؤشر التحليل
+    if (aiEnabled && allCurrentPoints.length >= 4) {
+        showAIOverlay(true);
+    }
+
+    // أرسل الـ delta الأخير مع كل النقاط
+    sendDelta([p], true);
+}
+
+function sendDelta(newPoints, isComplete) {
+    if (!connection || connection.state !== 'Connected') return;
+    connection.invoke('SendDelta', {
+        strokeId  : currentStrokeId,
+        tool, color,
+        size      : penSize,
+        newPoints,
+        isComplete,
+        allPoints : isComplete ? allCurrentPoints : []
+    }).catch(err => console.error('SendDelta:', err));
+}
+
+// ================================================================
+//  استقبال ShapeRecognized من السيرفر (الميزة الذكية ✨)
+// ================================================================
+function onShapeRecognized(shape) {
+    showAIOverlay(false);
+
+    // المستخدم مطفّي الـ AI عنده → تجاهل أي تصحيح شكل واصل من السيرفر
+    if (!aiEnabled) return;
+
+    if (shape.shapeType === 'none') return;
+
+    // ابحث عن الضربة وأضف الشكل المصحّح إليها
+    const stroke = strokes.find(s => s.id === shape.strokeId);
+    if (stroke) {
+        stroke.recognizedShape = shape;
+        // ارسم الشكل المصحّح بأنيميشن جميل
+        animateCorrectedShape(shape, stroke.color, stroke.size);
+    }
+
+    // أظهر إشعار
+    const icons = { circle:'⭕', rectangle:'▭', triangle:'△', line:'╱', arrow:'→' };
+    const icon  = icons[shape.shapeType] || '✨';
+    const conf  = Math.round((shape.confidence || 0) * 100);
+    log(`🤖 <b>${shape.userName}</b> رسم ${shape.label} ${icon} — ثقة: ${conf}%`, 'ai');
+    actLog(`${icon} ${shape.label} بواسطة ${shape.userName}`);
+}
+
+// أنيميشن ظهور الشكل المصحّح
+function animateCorrectedShape(shape, strokeColor, strokeSize) {
+    redraw(); // امسح الرسمة اليدوية
+
+    const pts = shape.correctedPoints;
+    if (!pts || pts.length < 2) return;
+
+    let progress = 0;
+    const total  = pts.length;
+
+    function step() {
+        progress += 2;
+        if (progress > total) { progress = total; }
+
+        // ارسم الجزء المكتمل
+        ctx.save();
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth   = strokeSize;
+        ctx.lineCap = ctx.lineJoin = 'round';
+        ctx.shadowColor = '#185FA5';
+        ctx.shadowBlur  = 8;
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < progress; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+        ctx.restore();
+
+        if (progress < total) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+}
+
+// ================================================================
+//  أحداث واردة من مستخدمين آخرين (Delta)
+// ================================================================
+const liveStrokes = {};
+
+function applyDelta(delta) {
+    if (!liveStrokes[delta.strokeId]) {
+        liveStrokes[delta.strokeId] = {
+            id: delta.strokeId,
+            tool: delta.tool,
+            color: delta.color,
+            size: delta.size,
+            points: []
+        };
+    }
+    const ls = liveStrokes[delta.strokeId];
+
+    if (ls.points.length > 0 && delta.newPoints.length > 0) {
+        ctx.save();
+        ctx.strokeStyle = delta.tool === 'erase' ? '#ffffff' : delta.color;
+        ctx.lineWidth   = delta.tool === 'erase' ? delta.size * 5 : delta.size;
+        ctx.lineCap = ctx.lineJoin = 'round';
+        ctx.beginPath();
+        const last = ls.points[ls.points.length - 1];
+        ctx.moveTo(last.x, last.y);
+        delta.newPoints.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.stroke();
+        ctx.restore();
+    }
+    ls.points.push(...delta.newPoints);
+
+    if (delta.isComplete) {
+        strokes.push({ ...ls });
+        delete liveStrokes[delta.strokeId];
+    }
+}
+
+// ================================================================
+//  أدوات
+// ================================================================
+function setTool(t) {
+    tool = t;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('t-' + t)?.classList.add('active');
+    canvas.style.cursor = t === 'erase' ? 'cell' : 'crosshair';
+}
+
+function setColor(c, el) {
+    color = c;
+    document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+    el.classList.add('active');
+}
+
+function setSize(v) {
+    penSize = v;
+    const d = document.getElementById('size-dot');
+    d.style.width = d.style.height = Math.max(4, v * 1.5) + 'px';
+}
+
+function toggleAI(val) {
+    aiEnabled = val;
+    document.getElementById('ai-status').textContent =
+        '🤖 AI: ' + (val ? 'مفعّل' : 'معطّل');
+    log('🤖 تصحيح AI: ' + (val ? 'مفعّل ✅' : 'معطّل ❌'));
+}
+
+function undoLast() {
+    if (connection?.state === 'Connected')
+        connection.invoke('Undo').catch(() => {});
+}
+
+function clearBoard() {
+    if (!confirm('مسح كل السبورة؟')) return;
+    if (connection?.state === 'Connected')
+        connection.invoke('ClearAll').catch(() => {});
+}
+
+// ================================================================
+//  SignalR
+// ================================================================
+function initSignalR(name) {
+    connection = new signalR.HubConnectionBuilder()
+        .withUrl(`/whiteboardHub?name=${encodeURIComponent(name)}`)
+        .withAutomaticReconnect([0, 1000, 3000, 5000, 10000])
+        .configureLogging(signalR.LogLevel.Warning)
+        .build();
+
+    connection.on('YourInfo', info => {
+        myInfo = info;
+        document.getElementById('my-info').innerHTML =
+            `أنت: <b style="color:${info.color}">${info.userName}</b>`;
+    });
+
+    connection.on('ActiveUsers', users => renderUsers(users));
+    connection.on('UserJoined',  user  => {
+        log(`👤 <b>${user.userName}</b> انضم`);
+        actLog(`👤 ${user.userName} انضم`);
+    });
+    connection.on('UserLeft',    user  => {
+        log(`👋 <b>${user.userName}</b> غادر`);
+        removeCursor(user.connectionId);
+    });
+
+    // Delta
+    connection.on('ReceiveDelta', delta => applyDelta(delta));
+
+    // ✨ الميزة الذكية
+    connection.on('ShapeRecognized', shape => onShapeRecognized(shape));
+
+    // Late-join replay
+    connection.on('ReplayStart', total => {
+        if (!total) return;
+        document.getElementById('replay-overlay').style.display = 'flex';
+        document.getElementById('replay-msg').textContent = `جاري استعادة ${total} ضربة...`;
+    });
+    connection.on('ReplayBatch', batch => {
+        batch.forEach(s => {
+            strokes.push(s);
+            if (s.recognizedShape && s.recognizedShape.shapeType !== 'none') {
+                drawCorrectedShape(s.recognizedShape, s.color, s.size);
+            } else {
+                drawStroke(s);
+            }
+        });
+    });
+    connection.on('ReplayEnd', () => {
+        document.getElementById('replay-overlay').style.display = 'none';
+        log(`✅ استُعيدت ${strokes.length} ضربة`);
+    });
+
+    // Undo / Clear
+    connection.on('StrokeRemoved', id => {
+        strokes = strokes.filter(s => s.id !== id);
+        redraw();
+    });
+    connection.on('BoardCleared', () => {
+        strokes = [];
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        log('🗑 تم مسح السبورة');
+    });
+
+    // إحصائيات
+    connection.on('StatsUpdate', stats => updateStats(stats));
+
+    // Cursor
+    connection.on('UserCursor', d => updateCursor(d.userId, d.userName, d.color, d.x, d.y));
+
+    // حالة الاتصال
+    connection.onreconnecting(() => setBadge('يعيد الاتصال...', 'reconnecting'));
+    connection.onreconnected(() => { setBadge('● متصل', 'connected'); log('✅ أُعيد الاتصال'); });
+    connection.onclose(()     => setBadge('● منقطع', 'disconnected'));
+
+    connection.start()
+        .then(() => { setBadge('● متصل', 'connected'); log('🔌 WebSocket متصل'); })
+        .catch(err => { setBadge('● خطأ', 'disconnected'); console.error(err); });
+}
+
+// ================================================================
+//  UI helpers
+// ================================================================
+function showAIOverlay(show) {
+    document.getElementById('ai-overlay').style.display = show ? 'flex' : 'none';
+}
+
+function updateStats(s) {
+    document.getElementById('s-total').textContent      = s.totalStrokes      ?? 0;
+    document.getElementById('s-recognized').textContent = s.recognizedShapes  ?? 0;
+    const b = s.shapeBreakdown ?? {};
+    document.getElementById('b-circle').textContent    = b['circle']    ?? 0;
+    document.getElementById('b-rectangle').textContent = b['rectangle'] ?? 0;
+    document.getElementById('b-triangle').textContent  = b['triangle']  ?? 0;
+    document.getElementById('b-line').textContent      = b['line']      ?? 0;
+    document.getElementById('b-arrow').textContent     = b['arrow']     ?? 0;
+}
+
+let activeUsers = [];
+function renderUsers(users) {
+    activeUsers = users;
+    const el = document.getElementById('users-panel');
+    el.innerHTML = users.map(u =>
+        `<div class="user-row">
+          <span class="user-dot" style="background:${u.color}"></span>
+          <span>${u.userName}</span>
+        </div>`
+    ).join('');
+}
+
+function updateCursor(userId, name, color, x, y) {
+    let el = document.getElementById('cur-' + userId);
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'cur-' + userId;
+        el.className = 'remote-cursor';
+        el.innerHTML = `<svg width="14" height="20" viewBox="0 0 14 20">
+          <path d="M0 0 L0 16 L4 12 L7 19 L9 18 L6 11 L11 11 Z"
+                fill="${color}" stroke="white" stroke-width="1.2"/>
+        </svg><span style="background:${color}">${name}</span>`;
+        document.getElementById('cursors-layer').appendChild(el);
+    }
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+}
+function removeCursor(id) { document.getElementById('cur-' + id)?.remove(); }
+
+function setBadge(txt, state) {
+    const b = document.getElementById('conn-badge');
+    b.textContent = txt; b.className = 'badge ' + state;
+}
+
+function log(html, type = '') {
+    const el = document.getElementById('event-log');
+    const item = document.createElement('div');
+    item.className = 'log-item' + (type === 'ai' ? ' ai-log' : '');
+    item.innerHTML = html;
+    el.appendChild(item);
+    while (el.children.length > 5) el.removeChild(el.firstChild);
+    setTimeout(() => { item.style.opacity = '0'; setTimeout(() => item.remove(), 400); }, 4000);
+}
+
+function actLog(txt) {
+    const el = document.getElementById('activity-log');
+    const item = document.createElement('div');
+    item.className = 'act-item';
+    item.textContent = txt;
+    el.insertBefore(item, el.firstChild);
+    while (el.children.length > 10) el.removeChild(el.lastChild);
+}
+
+setSize(3);
+</script>
+}
